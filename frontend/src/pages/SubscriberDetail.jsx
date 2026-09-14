@@ -1,0 +1,113 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { api } from "../api.js";
+
+export default function SubscriberDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [editForm, setEditForm] = useState({ name: "", panelNumber: "", phone: "" });
+  const [reading, setReading] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [msg, setMsg] = useState("");
+
+  const load = async () => {
+    const result = await api.getSubscriber(id);
+    setData(result);
+    setEditForm({
+      name: result.subscriber.name || "",
+      panelNumber: result.subscriber.panelNumber || "",
+      phone: result.subscriber.phone || "",
+    });
+  };
+  useEffect(() => { load(); }, [id]);
+
+  if (!data) return <div className="container">جارِ التحميل...</div>;
+  const { subscriber, lastCycle } = data;
+
+  const submitReading = async (e) => {
+    e.preventDefault();
+    const weekLabel = new Date().toISOString().slice(0, 10);
+    const cycle = await api.addReading(id, { currentReading: Number(reading), weekLabel });
+    setReading("");
+    setMsg("تم إنشاء الفاتورة الأسبوعية بنجاح");
+    load();
+    navigate(`/print/${cycle._id}`);
+  };
+
+  const submitPayment = async (e) => {
+    e.preventDefault();
+    if (!lastCycle) return;
+    await api.pay(lastCycle._id, Number(payAmount));
+    setPayAmount("");
+    setMsg("تم تسجيل الدفعة");
+    load();
+  };
+
+  const submitEdit = async (e) => {
+    e.preventDefault();
+    await api.updateSubscriber(id, {
+      name: editForm.name,
+      panelNumber: editForm.panelNumber,
+      phone: editForm.phone,
+    });
+    setMsg("تم تعديل بيانات المشترك");
+    load();
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("هل تريد حذف هذا المشترك نهائيًا؟")) return;
+    await api.deleteSubscriber(id);
+    navigate("/subscribers");
+  };
+
+  return (
+    <div className="container">
+      <div className="card">
+        <h2>{subscriber.name} — رقم {subscriber.subscriberId}</h2>
+        <p>رقم التابلو: {subscriber.panelNumber || "-"} | الحالة: {subscriber.connectionStatus}</p>
+        <p>رقم الهاتف: {subscriber.phone || "-"}</p>
+        <p>الرصيد الحالي المستحق: <b>{subscriber.balance}</b></p>
+        {msg && <p style={{ color: "#2563eb" }}>{msg}</p>}
+      </div>
+
+      <div className="card">
+        <h3>تعديل بيانات المشترك</h3>
+        <form onSubmit={submitEdit} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input
+            placeholder="اسم المشترك"
+            required
+            value={editForm.name}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+          />
+          <input
+            placeholder="رقم التابلو"
+            value={editForm.panelNumber}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, panelNumber: e.target.value }))}
+          />
+          <input
+            placeholder="رقم الهاتف"
+            value={editForm.phone}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+          />
+          <button type="submit">حفظ التعديلات</button>
+          <button type="button" onClick={handleDelete} style={{ background: "#dc2626" }}>حذف المشترك</button>
+        </form>
+      </div>
+
+      {lastCycle && (
+        <div className="card">
+          <h3>آخر فاتورة (دورة {lastCycle.weekLabel})</h3>
+          <p>الاستهلاك: {lastCycle.consumption} | المطلوب الكلي: {lastCycle.totalDue}</p>
+          <p>المدفوع: {lastCycle.paidAmount} | المتبقي: {lastCycle.remainingBalance} | الحالة: {lastCycle.status}</p>
+          <form onSubmit={submitPayment} style={{ display: "flex", gap: 8 }}>
+            <input placeholder="المبلغ المدفوع الآن" required type="number" value={payAmount}
+              onChange={(e) => setPayAmount(e.target.value)} />
+            <button type="submit">تسجيل الدفعة</button>
+            <button type="button" onClick={() => navigate(`/print/${lastCycle._id}`)}>طباعة الإيصال</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
