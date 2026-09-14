@@ -1,5 +1,5 @@
 // يمكن تجاوز العنوان عبر VITE_API_URL عند الحاجة
-const API_BASE = import.meta.env.VITE_API_URL || "https://hammoudaapp.onrender.com";
+const API_BASE = import.meta.env.VITE_API_URL || "https://hammoudaapp.onrender.com/api";
 
 function clearSessionOnUnauthorized() {
   localStorage.removeItem("fatura_token");
