@@ -1,5 +1,5 @@
-// عدّل هذا العنوان ليطابق رابط السيرفر الفعلي بعد النشر على الإنترنت
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+// يمكن تجاوز العنوان عبر VITE_API_URL عند الحاجة
+const API_BASE = import.meta.env.VITE_API_URL || "https://hammoudaapp.onrender.com";
 
 function clearSessionOnUnauthorized() {
   localStorage.removeItem("fatura_token");
