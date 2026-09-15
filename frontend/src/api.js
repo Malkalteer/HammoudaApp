@@ -31,7 +31,12 @@ export const api = {
   register: (data) => request("/auth/register", { method: "POST", body: JSON.stringify(data) }),
   getUsers: () => request("/auth/users"),
   updateUser: (id, data) => request(`/auth/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  getSubscribers: (q = "", status = "") => request(`/subscribers${q || status ? `?${[q ? `q=${encodeURIComponent(q)}` : "", status ? `status=${encodeURIComponent(status)}` : ""].filter(Boolean).join("&")}` : ""}`),
+  getSubscribers: (q = "", status = "", page = 1, pageSize = 25) => request(`/subscribers?${[
+    q ? `q=${encodeURIComponent(q)}` : "",
+    status ? `status=${encodeURIComponent(status)}` : "",
+    `page=${page}`,
+    `pageSize=${pageSize}`,
+  ].filter(Boolean).join("&")}`),
   getSubscriber: (id) => request(`/subscribers/${id}`),
   getKwhPrice: () => request(`/settings/kwh-price`),
   setKwhPrice: (value) => request(`/settings/kwh-price`, { method: "PUT", body: JSON.stringify({ value }) }),

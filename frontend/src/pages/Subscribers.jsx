@@ -3,8 +3,11 @@ import { Link } from "react-router-dom";
 import { api } from "../api.js";
 
 export default function Subscribers() {
+  const pageSize = 100;
   const [list, setList] = useState([]);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [selected, setSelected] = useState([]);
   const [payments, setPayments] = useState({});
   const [paying, setPaying] = useState({});
@@ -14,8 +17,24 @@ export default function Subscribers() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [printCycle, setPrintCycle] = useState(null);
 
-  const load = async () => setList(await api.getSubscribers(q, statusFilter));
-  useEffect(() => { load(); }, [q, statusFilter]);
+  const load = async () => {
+    try {
+      const result = await api.getSubscribers(q, statusFilter, page, pageSize);
+      if (Array.isArray(result)) {
+        const start = (page - 1) * pageSize;
+        setList(result.slice(start, start + pageSize));
+        setTotalPages(Math.max(Math.ceil(result.length / pageSize), 1));
+      } else {
+        setList(Array.isArray(result.items) ? result.items : []);
+        setTotalPages(Number(result.totalPages) || 1);
+      }
+    } catch (err) {
+      setList([]);
+      setTotalPages(1);
+      setMsg(err.message);
+    }
+  };
+  useEffect(() => { load(); }, [q, statusFilter, page]);
 
   useEffect(() => {
     if (!printCycle) return;
@@ -116,9 +135,15 @@ export default function Subscribers() {
             className="search-input"
             placeholder="بحث بالاسم أو رقم المشترك..."
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
           />
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <select value={statusFilter} onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}>
             <option value="all">الكل</option>
             <option value="overdue">متأخرون</option>
             <option value="connected">متصلون</option>
@@ -151,6 +176,7 @@ export default function Subscribers() {
               <th>الدفع</th>
               <th>الرصيد</th>
               <th>الحالة</th>
+              <th>تم الدفع بواسطة</th>
             </tr>
           </thead>
           <tbody>
@@ -177,7 +203,7 @@ export default function Subscribers() {
                       onChange={(e) => setPayments((prev) => ({ ...prev, [s._id]: e.target.value }))}
                       className="payment-input"
                     />
-                    <button disabled={paying[s._id]} onClick={() => handlePay(s)}>
+                    <button type="button" disabled={paying[s._id]} onClick={() => handlePay(s)}>
                       {paying[s._id] ? "جارِ التسجيل..." : "دفع"}
                     </button>
                   </div>
@@ -186,10 +212,20 @@ export default function Subscribers() {
                 <td style={{ color: s.connectionStatus === "مقطوع" ? "#dc2626" : "#16a34a" }}>
                   {s.connectionStatus}
                 </td>
+                <td>{s.lastPaymentBy}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        <div className="toolbar" style={{ justifyContent: "center" }}>
+          <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>
+            السابق
+          </button>
+          <span>صفحة {page} من {totalPages}</span>
+          <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)}>
+            التالي
+          </button>
+        </div>
       </div>
 
       {printCycle && (

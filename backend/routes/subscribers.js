@@ -25,9 +25,11 @@ const getPanelNumberValue = (subscriber) => {
 
 const normalizeStocktakeValue = (value) => String(value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
 
-// جلب كل المشتركين (مع بحث اختياري ?q=)
+// جلب المشتركين مع بحث وتقسيم صفحات (مع بحث اختياري ?q=)
 router.get("/", requireRole("admin", "accountant", "electrician"), async (req, res) => {
   const { q, status } = req.query;
+  const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+  const pageSize = Math.min(Math.max(Number.parseInt(req.query.pageSize, 10) || 25, 10), 100);
   const filter = {};
 
   if (q) {
@@ -51,29 +53,49 @@ router.get("/", requireRole("admin", "accountant", "electrician"), async (req, r
     filter.connectionStatus = { $in: ["مطلوب قطعه", "مقطوع", "بانتظار الوصل"] };
   }
 
-  const subscribers = await Subscriber.find(filter);
-  subscribers.sort((left, right) => {
-    const leftPanel = getPanelNumberValue(left);
-    const rightPanel = getPanelNumberValue(right);
-    if (leftPanel !== rightPanel) return leftPanel - rightPanel;
-    return left.subscriberId - right.subscriberId;
-  });
+  const [total, subscribers] = await Promise.all([
+    Subscriber.countDocuments(filter),
+    Subscriber.aggregate([
+      { $match: filter },
+      {
+        $addFields: {
+          _panelNumberSort: {
+            $convert: { input: "$panelNumber", to: "int", onError: Number.MAX_SAFE_INTEGER, onNull: Number.MAX_SAFE_INTEGER },
+          },
+        },
+      },
+      { $sort: { _panelNumberSort: 1, subscriberId: 1 } },
+      { $skip: (page - 1) * pageSize },
+      { $limit: pageSize },
+    ]),
+  ]);
 
   const subscriberObjectIds = subscribers.map((s) => s._id);
-  const latestCycles = subscriberObjectIds.length
-    ? await Cycle.aggregate([
-        { $match: { subscriber: { $in: subscriberObjectIds } } },
-        { $sort: { createdAt: -1 } },
-        { $group: { _id: "$subscriber", cycle: { $first: "$$ROOT" } } },
+  const [latestCycles, latestPayments] = subscriberObjectIds.length
+    ? await Promise.all([
+        Cycle.aggregate([
+          { $match: { subscriber: { $in: subscriberObjectIds } } },
+          { $sort: { createdAt: -1 } },
+          { $group: { _id: "$subscriber", cycle: { $first: "$$ROOT" } } },
+        ]),
+        Payment.aggregate([
+          { $match: { subscriber: { $in: subscriberObjectIds } } },
+          { $sort: { paidAt: -1, createdAt: -1 } },
+          { $group: { _id: "$subscriber", payment: { $first: "$$ROOT" } } },
+        ]),
       ])
-    : [];
+    : [[], []];
 
   const latestCycleBySubscriber = new Map(
     latestCycles.map((item) => [String(item._id), item.cycle])
   );
+  const latestPaymentBySubscriber = new Map(
+    latestPayments.map((item) => [String(item._id), item.payment])
+  );
 
   const response = subscribers.map((s) => {
     const cycle = latestCycleBySubscriber.get(String(s._id));
+    const latestPayment = latestPaymentBySubscriber.get(String(s._id));
     const previousReading = cycle ? Number(cycle.previousReading || 0) : Number(s.previousReading || 0);
     const currentReading = cycle ? Number(cycle.currentReading || 0) : Number(s.currentReading || 0);
     const consumption = cycle ? Number(cycle.consumption || 0) : Number(s.consumption || 0);
@@ -93,10 +115,17 @@ router.get("/", requireRole("admin", "accountant", "electrician"), async (req, r
       remainingBalance: cycle ? Number(cycle.remainingBalance ?? cycle.totalDue ?? 0) : Number(s.balance || 0),
       paymentStatus: cycle?.status || "unpaid",
       lastCycleId: cycle ? cycle._id : null,
+      lastPaymentBy: latestPayment?.paidByName || latestPayment?.paidByUsername || "-",
     };
   });
 
-  res.json(response);
+  res.json({
+    items: response,
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(Math.ceil(total / pageSize), 1),
+  });
 });
 
 // إضافة مشترك جديد يدويًا

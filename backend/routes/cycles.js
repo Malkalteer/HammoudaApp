@@ -39,6 +39,9 @@ router.post("/:id/pay", requireRole("admin", "accountant"), async (req, res) => 
       subscriber: cycle.subscriber,
       subscriberId: cycle.subscriberId,
       amount: payment,
+      paidBy: req.user.id,
+      paidByName: req.user.name || req.user.username || "",
+      paidByUsername: req.user.username || "",
     });
 
     const dateKey = new Date().toISOString().slice(0, 10);
