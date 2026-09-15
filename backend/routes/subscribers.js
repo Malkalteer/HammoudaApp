@@ -118,7 +118,7 @@ router.get("/", requireRole("admin", "accountant", "electrician"), async (req, r
     const totalAccount = cycle ? Number(cycle.totalDue || 0) : Number(s.balance || 0);
 
     return {
-      ...s.toObject(),
+      ...s,
       previousReading,
       currentReading,
       consumption,
