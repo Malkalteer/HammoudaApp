@@ -212,7 +212,7 @@ export default function Subscribers() {
                 <td style={{ color: s.connectionStatus === "مقطوع" ? "#dc2626" : "#16a34a" }}>
                   {s.connectionStatus}
                 </td>
-                <td>{s.lastPaymentBy}</td>
+                <td>{s.lastPaymentBy || s.paidByName || s.paidByUsername || "-"}</td>
               </tr>
             ))}
           </tbody>

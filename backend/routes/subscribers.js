@@ -5,6 +5,7 @@ const Cycle = require("../models/Cycle");
 const FinanceDay = require("../models/FinanceDay");
 const StocktakeRequest = require("../models/StocktakeRequest");
 const Payment = require("../models/Payment");
+const User = require("../models/User");
 const XLSX = require("xlsx");
 const multer = require("multer");
 const { authMiddleware, requireRole } = require("../middleware/auth");
@@ -92,10 +93,18 @@ router.get("/", requireRole("admin", "accountant", "electrician"), async (req, r
   const latestPaymentBySubscriber = new Map(
     latestPayments.map((item) => [String(item._id), item.payment])
   );
+  const payerIds = latestPayments
+    .map((item) => item.payment?.paidBy)
+    .filter(Boolean);
+  const payers = payerIds.length
+    ? await User.find({ _id: { $in: payerIds } }).select("name username").lean()
+    : [];
+  const payerById = new Map(payers.map((payer) => [String(payer._id), payer]));
 
   const response = subscribers.map((s) => {
     const cycle = latestCycleBySubscriber.get(String(s._id));
     const latestPayment = latestPaymentBySubscriber.get(String(s._id));
+    const payer = latestPayment?.paidBy ? payerById.get(String(latestPayment.paidBy)) : null;
     const previousReading = cycle ? Number(cycle.previousReading || 0) : Number(s.previousReading || 0);
     const currentReading = cycle ? Number(cycle.currentReading || 0) : Number(s.currentReading || 0);
     const consumption = cycle ? Number(cycle.consumption || 0) : Number(s.consumption || 0);
@@ -115,7 +124,7 @@ router.get("/", requireRole("admin", "accountant", "electrician"), async (req, r
       remainingBalance: cycle ? Number(cycle.remainingBalance ?? cycle.totalDue ?? 0) : Number(s.balance || 0),
       paymentStatus: cycle?.status || "unpaid",
       lastCycleId: cycle ? cycle._id : null,
-      lastPaymentBy: latestPayment?.paidByName || latestPayment?.paidByUsername || "-",
+      lastPaymentBy: latestPayment?.paidByName || payer?.name || latestPayment?.paidByUsername || payer?.username || "-",
     };
   });
 
