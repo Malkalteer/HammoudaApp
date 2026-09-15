@@ -96,9 +96,14 @@ router.get("/", requireRole("admin", "accountant", "electrician"), async (req, r
   const payerIds = latestPayments
     .map((item) => item.payment?.paidBy)
     .filter((id) => id && User.base.Types.ObjectId.isValid(id));
-  const payers = payerIds.length
-    ? await User.find({ _id: { $in: payerIds } }).select("name username").lean()
-    : [];
+  let payers = [];
+  try {
+    if (payerIds.length) {
+      payers = await User.find({ _id: { $in: payerIds } }).select("name username").lean();
+    }
+  } catch (err) {
+    console.error("Failed to load payment user names:", err.message);
+  }
   const payerById = new Map(payers.map((payer) => [String(payer._id), payer]));
 
   const response = subscribers.map((s) => {
