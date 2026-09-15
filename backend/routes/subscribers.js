@@ -95,7 +95,7 @@ router.get("/", requireRole("admin", "accountant", "electrician"), async (req, r
   );
   const payerIds = latestPayments
     .map((item) => item.payment?.paidBy)
-    .filter(Boolean);
+    .filter((id) => id && User.base.Types.ObjectId.isValid(id));
   const payers = payerIds.length
     ? await User.find({ _id: { $in: payerIds } }).select("name username").lean()
     : [];
