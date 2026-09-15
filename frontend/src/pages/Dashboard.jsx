@@ -40,7 +40,13 @@ export default function Dashboard() {
         api.getDailyPaid(),
       ]);
       setKwhPrice(Number(priceData?.value ?? 1));
-      setSubscribers(subscriberData);
+      setSubscribers(
+        Array.isArray(subscriberData)
+          ? subscriberData
+          : Array.isArray(subscriberData?.items)
+          ? subscriberData.items
+          : []
+      );
       setCustomPrices(customPriceData);
       setDailyPaidRows(getDailyRows(dailyPaidData));
     }
