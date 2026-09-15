@@ -9,6 +9,7 @@ export default function SubscriberDetail() {
   const [editForm, setEditForm] = useState({ name: "", panelNumber: "", phone: "" });
   const [reading, setReading] = useState("");
   const [payAmount, setPayAmount] = useState("");
+  const [isPaying, setIsPaying] = useState(false);
   const [msg, setMsg] = useState("");
 
   const load = async () => {
@@ -37,11 +38,18 @@ export default function SubscriberDetail() {
 
   const submitPayment = async (e) => {
     e.preventDefault();
-    if (!lastCycle) return;
-    await api.pay(lastCycle._id, Number(payAmount));
-    setPayAmount("");
-    setMsg("تم تسجيل الدفعة");
-    load();
+    if (!lastCycle || isPaying) return;
+    setIsPaying(true);
+    try {
+      await api.pay(lastCycle._id, Number(payAmount));
+      setPayAmount("");
+      setMsg("تم تسجيل الدفعة");
+      load();
+    } catch (err) {
+      setMsg(err.message);
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   const submitEdit = async (e) => {
@@ -103,7 +111,9 @@ export default function SubscriberDetail() {
           <form onSubmit={submitPayment} style={{ display: "flex", gap: 8 }}>
             <input placeholder="المبلغ المدفوع الآن" required type="number" value={payAmount}
               onChange={(e) => setPayAmount(e.target.value)} />
-            <button type="submit">تسجيل الدفعة</button>
+            <button type="submit" disabled={isPaying}>
+              {isPaying ? "جارِ التسجيل..." : "تسجيل الدفعة"}
+            </button>
             <button type="button" onClick={() => navigate(`/print/${lastCycle._id}`)}>طباعة الإيصال</button>
           </form>
         </div>

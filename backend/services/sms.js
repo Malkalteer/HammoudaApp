@@ -32,13 +32,18 @@ async function sendSms({ phone, message, subscriberId = null, subscriber = null,
       const response = await fetch(gateway.url, {
         method: "POST",
         headers: {
-          Authorization: gateway.token,
+          Authorization: gateway.token.startsWith("Bearer ") ? gateway.token : `Bearer ${gateway.token}`,
+          "X-Auth-Token": gateway.token.replace(/^Bearer\s+/i, ""),
           "Content-Type": "application/json; charset=utf-8",
+          Accept: "application/json, text/plain, */*",
         },
         body: JSON.stringify({ to: cleanPhone, message }),
         signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) throw new Error(`بوابة SMS أعادت الحالة ${response.status}`);
+      const responseText = await response.text();
+      if (!response.ok) {
+        throw new Error(`بوابة SMS أعادت الحالة ${response.status}${responseText ? `: ${responseText.slice(0, 300)}` : ""}`);
+      }
 
       const log = await SmsLog.create({
         subscriber,
@@ -47,7 +52,7 @@ async function sendSms({ phone, message, subscriberId = null, subscriber = null,
         message,
         status: "sent",
         provider: "traccar",
-        response: "تم الإرسال عبر بوابة الهاتف",
+        response: responseText || "تم الإرسال عبر بوابة الهاتف",
       });
       return { ok: true, provider: "traccar", log };
     }

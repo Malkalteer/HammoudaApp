@@ -7,6 +7,7 @@ export default function Subscribers() {
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState([]);
   const [payments, setPayments] = useState({});
+  const [paying, setPaying] = useState({});
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: "", panelNumber: "", currentReading: "", phone: "" });
   const [msg, setMsg] = useState("");
@@ -43,6 +44,7 @@ export default function Subscribers() {
   };
 
   const handlePay = async (subscriber) => {
+    if (paying[subscriber._id]) return;
     const amount = Number(payments[subscriber._id] || 0);
     if (!amount || amount <= 0) {
       setMsg("أدخل مبلغًا صحيحًا للدفع");
@@ -53,11 +55,20 @@ export default function Subscribers() {
       return;
     }
 
-    const cycle = await api.pay(subscriber.lastCycleId, amount);
-    setPayments((prev) => ({ ...prev, [subscriber._id]: "" }));
-    setMsg("تم تسجيل الدفعة بنجاح");
-    setPrintCycle({ cycle, subscriber });
-    load();
+    setPaying((prev) => ({ ...prev, [subscriber._id]: true }));
+    try {
+      const cycle = await api.pay(subscriber.lastCycleId, amount);
+      setPayments((prev) => ({ ...prev, [subscriber._id]: "" }));
+      setMsg(cycle.sms?.ok
+        ? "تم تسجيل الدفعة وإرسال رسالة SMS بنجاح"
+        : `تم تسجيل الدفعة، لكن لم تُرسل رسالة SMS: ${cycle.sms?.error || "تحقق من رقم الهاتف وإعدادات البوابة"}`);
+      setPrintCycle({ cycle, subscriber });
+      load();
+    } catch (err) {
+      setMsg(err.message);
+    } finally {
+      setPaying((prev) => ({ ...prev, [subscriber._id]: false }));
+    }
   };
 
   const sendToCutPage = async () => {
@@ -166,7 +177,9 @@ export default function Subscribers() {
                       onChange={(e) => setPayments((prev) => ({ ...prev, [s._id]: e.target.value }))}
                       className="payment-input"
                     />
-                    <button onClick={() => handlePay(s)}>دفع</button>
+                    <button disabled={paying[s._id]} onClick={() => handlePay(s)}>
+                      {paying[s._id] ? "جارِ التسجيل..." : "دفع"}
+                    </button>
                   </div>
                 </td>
                 <td>{s.balance}</td>

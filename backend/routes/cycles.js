@@ -56,8 +56,9 @@ router.post("/:id/pay", requireRole("admin", "accountant"), async (req, res) => 
       await subscriber.save();
     }
 
+    let smsResult = null;
     if (subscriber && subscriber.smsEnabled && subscriber.phone) {
-      await sendSms({
+      smsResult = await sendSms({
         phone: subscriber.phone,
         subscriber: subscriber._id,
         subscriberId: subscriber.subscriberId,
@@ -72,7 +73,12 @@ router.post("/:id/pay", requireRole("admin", "accountant"), async (req, res) => 
       });
     }
 
-    res.json(cycle);
+    res.json({
+      ...cycle.toObject(),
+      sms: smsResult
+        ? { ok: smsResult.ok, error: smsResult.error || null, provider: smsResult.provider || null }
+        : { ok: false, error: "لم يتم إرسال الرسالة: رقم الهاتف غير موجود أو SMS معطل", provider: null },
+    });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
