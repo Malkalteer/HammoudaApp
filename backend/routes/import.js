@@ -163,6 +163,7 @@ router.post("/excel", requireRole("admin"), upload.single("file"), async (req, r
     await FinanceDay.findOneAndUpdate(
       { dateKey },
       { $set: {
+        hasStocktake: true,
         previousBalance: importedPreviousBalanceTotal,
         currentInvoiceTotal: importedCurrentInvoiceTotal,
       } },

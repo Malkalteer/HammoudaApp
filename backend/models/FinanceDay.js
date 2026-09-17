@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const FinanceDaySchema = new mongoose.Schema(
   {
     dateKey: { type: String, required: true, unique: true },
+    hasStocktake: { type: Boolean, default: false },
     previousBalance: { type: Number, default: 0 },
     currentInvoiceTotal: { type: Number, default: 0 },
     dailyPaid: { type: Number, default: 0 },

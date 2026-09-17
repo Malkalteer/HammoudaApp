@@ -21,7 +21,7 @@ router.get("/summary", requireRole("admin", "accountant"), async (req, res) => {
     const start = new Date(`${dateKey}T00:00:00.000Z`);
     const end = new Date(`${dateKey}T23:59:59.999Z`);
 
-    const [invoices, paidToday, recentCycles, allCycles, cashOutDays] = await Promise.all([
+    const [invoices, paidToday, recentCycles, allCycles, cashOutDays, latestStocktake] = await Promise.all([
       Cycle.aggregate([
         { $match: { createdAt: { $gte: start, $lte: end } } },
         { $group: { _id: null, currentInvoiceTotal: { $sum: "$invoiceAmount" } } },
@@ -33,13 +33,23 @@ router.get("/summary", requireRole("admin", "accountant"), async (req, res) => {
       Cycle.find({ createdAt: { $gte: start, $lte: end } }).sort({ createdAt: -1 }).populate("subscriber"),
       Cycle.find().sort({ createdAt: -1 }).populate("subscriber"),
       FinanceDay.find({ "cashOuts.0": { $exists: true } }).sort({ dateKey: -1 }).lean(),
+      FinanceDay.findOne({
+        $or: [
+          { hasStocktake: true },
+          { previousBalance: { $ne: 0 } },
+          { currentInvoiceTotal: { $ne: 0 } },
+        ],
+      }).sort({ dateKey: -1 }).lean(),
     ]);
 
     const invoiceTotals = invoices[0] || { currentInvoiceTotal: 0 };
     const paid = paidToday[0] || { total: 0, count: 0 };
     const cashOut = Number(day.cashOut || 0);
-    const previousBalance = Number(day.previousBalance || 0);
-    const currentInvoiceTotal = Number(day.currentInvoiceTotal || invoiceTotals.currentInvoiceTotal || 0);
+    const accountSnapshot = day.hasStocktake || day.previousBalance || day.currentInvoiceTotal
+      ? day
+      : latestStocktake;
+    const previousBalance = Number(accountSnapshot?.previousBalance || 0);
+    const currentInvoiceTotal = Number(accountSnapshot?.currentInvoiceTotal || invoiceTotals.currentInvoiceTotal || 0);
     // الصندوق العام هو مجموع الجمعة السابقة والجمعة الحالية فقط.
     // إخراج الدرج حركة نقدية منفصلة ولا يغيّر قيمة الصندوق العام.
     const generalFund = previousBalance + currentInvoiceTotal;

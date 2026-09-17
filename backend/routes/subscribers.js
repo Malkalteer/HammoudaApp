@@ -605,6 +605,7 @@ router.post("/stocktake/requests/:id/approve", authMiddleware, requireRole("admi
       { dateKey },
       {
         $set: {
+          hasStocktake: true,
           previousBalance: previousFridayBalance + currentFridayTotal - totalDailyPaid ,
           currentInvoiceTotal,
           dailyPaid: 0,
