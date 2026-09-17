@@ -78,11 +78,22 @@ export default function Subscribers() {
     try {
       const cycle = await api.pay(subscriber.lastCycleId, amount);
       setPayments((prev) => ({ ...prev, [subscriber._id]: "" }));
-      setMsg(cycle.sms?.ok
-        ? "تم تسجيل الدفعة وإرسال رسالة SMS بنجاح"
-        : `تم تسجيل الدفعة، لكن لم تُرسل رسالة SMS: ${cycle.sms?.error || "تحقق من رقم الهاتف وإعدادات البوابة"}`);
+      setMsg(cycle.sms?.queued
+        ? "تم تسجيل الدفعة، وجارِ إرسال رسالة SMS في الخلفية"
+        : "تم تسجيل الدفعة");
+      setList((currentList) => currentList.map((item) => (
+        item._id === subscriber._id
+          ? {
+              ...item,
+              paidAmount: cycle.paidAmount,
+              remainingBalance: cycle.remainingBalance,
+              paymentStatus: cycle.status,
+              balance: cycle.remainingBalance,
+              lastPaymentBy: cycle.paidByName || item.lastPaymentBy,
+            }
+          : item
+      )));
       setPrintCycle({ cycle, subscriber });
-      load();
     } catch (err) {
       setMsg(err.message);
     } finally {

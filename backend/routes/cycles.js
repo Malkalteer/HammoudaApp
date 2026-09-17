@@ -59,9 +59,10 @@ router.post("/:id/pay", requireRole("admin", "accountant"), async (req, res) => 
       await subscriber.save();
     }
 
-    let smsResult = null;
+    let smsQueued = false;
     if (subscriber && subscriber.smsEnabled && subscriber.phone) {
-      smsResult = await sendSms({
+      smsQueued = true;
+      void sendSms({
         phone: subscriber.phone,
         subscriber: subscriber._id,
         subscriberId: subscriber.subscriberId,
@@ -73,14 +74,16 @@ router.post("/:id/pay", requireRole("admin", "accountant"), async (req, res) => 
           remaining > 0 ? `المتبقي عليك: ${remaining}` : remaining < 0 ? `رصيد لك: ${Math.abs(remaining)}` : "تم تسديد الحساب بالكامل.",
           "شكرا لك مولدات حمودة",
         ].join("\n"),
+      }).catch((error) => {
+        console.error("Failed to send payment SMS:", error.message);
       });
     }
 
     res.json({
       ...cycle.toObject(),
-      sms: smsResult
-        ? { ok: smsResult.ok, error: smsResult.error || null, provider: smsResult.provider || null }
-        : { ok: false, error: "لم يتم إرسال الرسالة: رقم الهاتف غير موجود أو SMS معطل", provider: null },
+      sms: smsQueued
+        ? { queued: true, provider: null }
+        : { queued: false, error: "لم يتم إرسال الرسالة: رقم الهاتف غير موجود أو SMS معطل", provider: null },
     });
   } catch (err) {
     res.status(400).json({ error: err.message });
