@@ -75,7 +75,7 @@ router.get("/sms-gateway", requireRole("admin"), async (req, res) => {
   }
 });
 
-router.put("/sms-gateway", requireRole("admin"), async (req, res) => {
+router.put("/sms-gateway", requireRole("admin","accountant"), async (req, res) => {
   try {
     const url = String(req.body?.url || "").trim().replace(/\/$/, "");
     const token = String(req.body?.token || "").trim();
