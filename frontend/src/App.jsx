@@ -21,6 +21,7 @@ const roles = {
   all: ["admin", "accountant", "electrician"],
   adminAccountant: ["admin", "accountant"],
   adminElectrician: ["admin", "electrician"],
+  cutList: ["admin", "accountant", "electrician"],
   adminOnly: ["admin"],
 };
 
@@ -55,7 +56,7 @@ export default function App() {
               {roles.adminAccountant.includes(user.role) && <NavLink to="/dashboard" onClick={closeMenu}>لوحة التحكم</NavLink>}
               {roles.adminElectrician.includes(user.role) && <NavLink to="/stocktake" onClick={closeMenu}>صفحة الجرد</NavLink>}
               {user.role === "admin" && <NavLink to="/admin/stocktake" onClick={closeMenu}>موافقة الجرد</NavLink>}
-              {roles.adminElectrician.includes(user.role) && <NavLink to="/cut-list" onClick={closeMenu}>صفحة القطع</NavLink>}
+              {roles.cutList.includes(user.role) && <NavLink to="/cut-list" onClick={closeMenu}>صفحة القطع</NavLink>}
               {roles.adminAccountant.includes(user.role) && <NavLink to="/reports" onClick={closeMenu}>التقارير</NavLink>}
               {roles.adminAccountant.includes(user.role) && <NavLink to="/finance" onClick={closeMenu}>المالية</NavLink>}
               {roles.adminAccountant.includes(user.role) && <NavLink to="/sms" onClick={closeMenu}>SMS</NavLink>}
@@ -77,13 +78,13 @@ export default function App() {
         <Route path="/subscriber/:id" element={<ProtectedRoute allowedRoles={roles.adminAccountant}><SubscriberDetail /></ProtectedRoute>} />
         <Route path="/print/:cycleId" element={<ProtectedRoute allowedRoles={roles.adminAccountant}><Print /></ProtectedRoute>} />
         <Route path="/import" element={<ProtectedRoute allowedRoles={roles.adminOnly}><Import /></ProtectedRoute>} />
-        <Route path="/cut-list" element={<ProtectedRoute allowedRoles={roles.adminElectrician}><CutList /></ProtectedRoute>} />
+        <Route path="/cut-list" element={<ProtectedRoute allowedRoles={roles.cutList}><CutList /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute allowedRoles={roles.adminAccountant}><Reports /></ProtectedRoute>} />
         <Route path="/finance" element={<ProtectedRoute allowedRoles={roles.adminAccountant}><Finance /></ProtectedRoute>} />
         <Route path="/sms" element={<ProtectedRoute allowedRoles={roles.adminAccountant}><SmsPanel /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute allowedRoles={roles.adminAccountant}><Settings /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute allowedRoles={roles.adminOnly}><Users /></ProtectedRoute>} />
-        <Route path="/auth" element={<Auth />} />
+        <Route path="/auth" element={<Auth />} /> 
       </Routes>
     </div>
   );

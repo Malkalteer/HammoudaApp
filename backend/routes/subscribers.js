@@ -248,7 +248,7 @@ router.post("/mark-disconnect", requireRole("admin", "accountant"), async (req, 
 });
 
 // === تأكيد تنفيذ القطع ونقل المشترك إلى جدول المقطوعين ===
-router.put("/:id/confirm-disconnect", requireRole("admin", "electrician"), async (req, res) => {
+router.put("/:id/confirm-disconnect", requireRole("admin", "accountant", "electrician"), async (req, res) => {
   const subscriber = await Subscriber.findOneAndUpdate(
     { _id: req.params.id, connectionStatus: "مطلوب قطعه" },
     { connectionStatus: "مقطوع" },
@@ -259,7 +259,7 @@ router.put("/:id/confirm-disconnect", requireRole("admin", "electrician"), async
 });
 
 // === نقل المشترك المقطوع إلى جدول الوصل ===
-router.put("/:id/send-to-reconnect", requireRole("admin", "electrician"), async (req, res) => {
+router.put("/:id/send-to-reconnect", requireRole("admin", "accountant", "electrician"), async (req, res) => {
   const subscriber = await Subscriber.findOneAndUpdate(
     { _id: req.params.id, connectionStatus: "مقطوع" },
     { connectionStatus: "بانتظار الوصل" },
@@ -310,7 +310,7 @@ router.post("/send-reminder", requireRole("admin", "accountant"), async (req, re
 });
 
 // === إعادة التوصيل وإخفاء المشترك من جدول الوصل ===
-router.put("/:id/reconnect", requireRole("admin", "electrician"), async (req, res) => {
+router.put("/:id/reconnect", requireRole("admin", "accountant", "electrician"), async (req, res) => {
   const subscriber = await Subscriber.findByIdAndUpdate(
     req.params.id,
     { connectionStatus: "متصل" },

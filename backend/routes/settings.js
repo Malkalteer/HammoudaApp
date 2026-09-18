@@ -63,7 +63,7 @@ router.put("/custom-prices/:id", requireRole("admin"), async (req, res) => {
   }
 });
 
-router.get("/sms-gateway", requireRole("admin"), async (req, res) => {
+router.get("/sms-gateway", requireRole("admin", "accountant"), async (req, res) => {
   try {
     const [url, token] = await Promise.all([
       Setting.findOne({ key: "smsGatewayUrl" }),
