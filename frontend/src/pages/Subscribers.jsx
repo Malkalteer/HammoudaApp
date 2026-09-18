@@ -99,6 +99,7 @@ export default function Subscribers() {
             headers: {
               Authorization: smsGateway.token,
               "Content-Type": "application/json; charset=utf-8",
+              "ngrok-skip-browser-warning": "true",
             },
           });
           paymentMessage = "تم تسجيل الدفعة وإرسال رسالة SMS بنجاح";

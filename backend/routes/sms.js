@@ -1,22 +1,84 @@
-const express = require("express");
-const router = express.Router();
-const { requireRole } = require("../middleware/auth");
 const SmsLog = require("../models/SmsLog");
-const { sendSms } = require("../services/sms");
+const Setting = require("../models/Setting");
 
-router.get("/logs", requireRole("admin", "accountant"), async (req, res) => {
-  const logs = await SmsLog.find().sort({ createdAt: -1 }).limit(50);
-  res.json(logs);
-});
+// عنوان API الثابت لخدمة SMS Gateway for Android (وضع Cloud Server)
+// راجع: https://docs.sms-gate.app/integration/api/
+const SMS_GATE_API_URL = "https://api.sms-gate.app/3rdparty/v1/messages";
 
-router.post("/send", requireRole("admin", "accountant"), async (req, res) => {
-  try {
-    const { phone, message, subscriberId, subscriber } = req.body;
-    const result = await sendSms({ phone, message, subscriberId, subscriber });
-    res.json(result);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+const getGatewaySettings = async () => {
+  const settings = await Setting.find({
+    key: { $in: ["smsGatewayUsername", "smsGatewayPassword"] },
+  }).lean();
+  const values = Object.fromEntries(settings.map((setting) => [setting.key, String(setting.value || "")]));
+  return { username: values.smsGatewayUsername, password: values.smsGatewayPassword };
+};
+
+async function sendSms({ phone, message, subscriberId = null, subscriber = null, provider = "custom" }) {
+  const cleanPhone = String(phone || "").trim();
+
+  if (!cleanPhone) {
+    const log = await SmsLog.create({
+      subscriber,
+      subscriberId,
+      phone: "",
+      message,
+      status: "failed",
+      provider,
+      response: "رقم الهاتف غير موجود",
+    });
+    return { ok: false, log, error: "رقم الهاتف غير موجود" };
   }
-});
 
-module.exports = router;
+  try {
+    const gateway = await getGatewaySettings();
+    if (!gateway.username || !gateway.password) {
+      throw new Error("إعدادات بوابة SMS غير مكتملة: يرجى إدخال اسم المستخدم وكلمة المرور من صفحة الإعدادات");
+    }
+
+    const basicAuth = Buffer.from(`${gateway.username}:${gateway.password}`).toString("base64");
+
+    const response = await fetch(SMS_GATE_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${basicAuth}`,
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        message,
+        phoneNumbers: [cleanPhone],
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const responseText = await response.text();
+    if (!response.ok) {
+      throw new Error(`بوابة SMS أعادت الحالة ${response.status}${responseText ? `: ${responseText.slice(0, 300)}` : ""}`);
+    }
+
+    const log = await SmsLog.create({
+      subscriber,
+      subscriberId,
+      phone: cleanPhone,
+      message,
+      status: "sent",
+      provider: "sms-gate.app",
+      response: responseText || "تم الإرسال عبر SMS Gateway for Android",
+    });
+    return { ok: true, provider: "sms-gate.app", log };
+  } catch (error) {
+    const log = await SmsLog.create({
+      subscriber,
+      subscriberId,
+      phone: cleanPhone,
+      message,
+      status: "failed",
+      provider,
+      response: error.message,
+    });
+
+    return { ok: false, provider, log, error: error.message };
+  }
+}
+
+module.exports = { sendSms };

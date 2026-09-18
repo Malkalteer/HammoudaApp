@@ -63,38 +63,35 @@ router.put("/custom-prices/:id", requireRole("admin"), async (req, res) => {
   }
 });
 
-router.get("/sms-gateway", requireRole("admin", "accountant"), async (req, res) => {
+router.get("/sms-gateway", requireRole("admin"), async (req, res) => {
   try {
-    const [url, token] = await Promise.all([
-      Setting.findOne({ key: "smsGatewayUrl" }),
-      Setting.findOne({ key: "smsGatewayToken" }),
+    const [username, password] = await Promise.all([
+      Setting.findOne({ key: "smsGatewayUsername" }),
+      Setting.findOne({ key: "smsGatewayPassword" }),
     ]);
-    res.json({ url: String(url?.value || ""), token: String(token?.value || "") });
+    res.json({ username: String(username?.value || ""), password: String(password?.value || "") });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.put("/sms-gateway", requireRole("admin","accountant"), async (req, res) => {
+router.put("/sms-gateway", requireRole("admin"), async (req, res) => {
   try {
-    const url = String(req.body?.url || "").trim().replace(/\/$/, "");
-    const token = String(req.body?.token || "").trim();
-    if (!url || !token) {
-      return res.status(400).json({ error: "يرجى إدخال رابط بوابة SMS والـ Token" });
-    }
-    if (!/^https?:\/\//i.test(url)) {
-      return res.status(400).json({ error: "رابط بوابة SMS يجب أن يبدأ بـ http:// أو https://" });
+    const username = String(req.body?.username || "").trim();
+    const password = String(req.body?.password || "").trim();
+    if (!username || !password) {
+      return res.status(400).json({ error: "يرجى إدخال اسم المستخدم وكلمة المرور الخاصين ببوابة SMS" });
     }
 
     await Promise.all([
       Setting.findOneAndUpdate(
-        { key: "smsGatewayUrl" },
-        { $set: { value: url, description: "رابط بوابة SMS" } },
+        { key: "smsGatewayUsername" },
+        { $set: { value: username, description: "اسم مستخدم بوابة SMS (SMS Gateway for Android)" } },
         { upsert: true, setDefaultsOnInsert: true }
       ),
       Setting.findOneAndUpdate(
-        { key: "smsGatewayToken" },
-        { $set: { value: token, description: "Token بوابة SMS" } },
+        { key: "smsGatewayPassword" },
+        { $set: { value: password, description: "كلمة مرور بوابة SMS (SMS Gateway for Android)" } },
         { upsert: true, setDefaultsOnInsert: true }
       ),
     ]);
