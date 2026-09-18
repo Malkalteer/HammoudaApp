@@ -182,7 +182,7 @@ router.put("/:id", requireRole("admin", "accountant"), async (req, res) => {
 });
 
 // حذف مشترك (مثلاً عند ترحيله من المنطقة)
-router.delete("/:id", requireRole("admin", "accountant"), async (req, res) => {
+router.delete("/:id", requireRole("admin"), async (req, res) => {
   await Subscriber.findByIdAndDelete(req.params.id);
   // ملاحظة: لا نحذف سجلات الدورات/الفواتير القديمة الخاصة به، تبقى محفوظة للأرشيف
   res.json({ message: "تم حذف المشترك" });
@@ -246,7 +246,10 @@ router.get("/:id", requireRole("admin", "accountant"), async (req, res) => {
   const subscriber = await Subscriber.findById(req.params.id);
   if (!subscriber) return res.status(404).json({ error: "المشترك غير موجود" });
   const lastCycle = await Cycle.findOne({ subscriber: subscriber._id }).sort({ createdAt: -1 });
-  res.json({ subscriber, lastCycle });
+  const lastPayment = lastCycle
+    ? await Payment.findOne({ cycle: lastCycle._id }).sort({ paidAt: -1, createdAt: -1 })
+    : null;
+  res.json({ subscriber, lastCycle, lastPayment });
 });
 
 router.post("/send-reminder", requireRole("admin", "accountant"), async (req, res) => {

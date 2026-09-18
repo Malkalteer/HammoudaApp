@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function SubscriberDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [editForm, setEditForm] = useState({ name: "", panelNumber: "", phone: "" });
   const [reading, setReading] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [isPaying, setIsPaying] = useState(false);
+  const [editedPayment, setEditedPayment] = useState("");
+  const [isEditingPayment, setIsEditingPayment] = useState(false);
   const [msg, setMsg] = useState("");
 
   const load = async () => {
@@ -20,6 +24,7 @@ export default function SubscriberDetail() {
       panelNumber: result.subscriber.panelNumber || "",
       phone: result.subscriber.phone || "",
     });
+    setEditedPayment("");
   };
   useEffect(() => { load(); }, [id]);
 
@@ -63,6 +68,22 @@ export default function SubscriberDetail() {
     load();
   };
 
+  const submitPaymentEdit = async (e) => {
+    e.preventDefault();
+    if (!lastCycle || editedPayment === "" || Number(editedPayment) === 0 || isEditingPayment) return;
+    setIsEditingPayment(true);
+    try {
+      await api.updateLastPayment(lastCycle._id, Number(editedPayment));
+      setEditedPayment("");
+      setMsg("تم تعديل آخر دفعة وتصحيح الحساب والمالية");
+      load();
+    } catch (err) {
+      setMsg(err.message);
+    } finally {
+      setIsEditingPayment(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!confirm("هل تريد حذف هذا المشترك نهائيًا؟")) return;
     await api.deleteSubscriber(id);
@@ -99,7 +120,9 @@ export default function SubscriberDetail() {
             onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
           />
           <button type="submit">حفظ التعديلات</button>
-          <button type="button" onClick={handleDelete} style={{ background: "#dc2626" }}>حذف المشترك</button>
+          {user?.role === "admin" && (
+            <button type="button" onClick={handleDelete} style={{ background: "#dc2626" }}>حذف المشترك</button>
+          )}
         </form>
       </div>
 
@@ -116,6 +139,21 @@ export default function SubscriberDetail() {
             </button>
             <button type="button" onClick={() => navigate(`/print/${lastCycle._id}`)}>طباعة الإيصال</button>
           </form>
+          {user?.role === "admin" && (
+            <form onSubmit={submitPaymentEdit} style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <input
+                placeholder="قيمة التصحيح (+ أو -)"
+                required
+                step="any"
+                type="number"
+                value={editedPayment}
+                onChange={(e) => setEditedPayment(e.target.value)}
+              />
+              <button type="submit" disabled={isEditingPayment}>
+                {isEditingPayment ? "جارِ التعديل..." : "تعديل آخر دفعة"}
+              </button>
+            </form>
+          )}
         </div>
       )}
     </div>

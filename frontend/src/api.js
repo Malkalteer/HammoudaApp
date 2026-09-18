@@ -110,6 +110,7 @@ export const api = {
   sendSmsBulk: (data) => request(`/subscribers/send-reminder`, { method: "POST", body: JSON.stringify(data) }),
   getCycle: (id) => request(`/cycles/${id}`),
   pay: (id, amount) => request(`/cycles/${id}/pay`, { method: "POST", body: JSON.stringify({ amount }) }),
+  updateLastPayment: (cycleId, amount) => request(`/cycles/${cycleId}/last-payment`, { method: "PUT", body: JSON.stringify({ amount }) }),
   getDashboard: () => request(`/dashboard/summary`),
   exportDashboardExcel: async () => {
     const token = localStorage.getItem("fatura_token");

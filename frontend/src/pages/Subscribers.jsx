@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import { api } from "../api.js";
 
 export default function Subscribers() {
@@ -16,6 +17,7 @@ export default function Subscribers() {
   const [msg, setMsg] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [printCycle, setPrintCycle] = useState(null);
+  const [smsGateway, setSmsGateway] = useState({ url: "", token: "" });
 
   const load = async () => {
     try {
@@ -35,6 +37,12 @@ export default function Subscribers() {
     }
   };
   useEffect(() => { load(); }, [q, statusFilter, page]);
+
+  useEffect(() => {
+    api.getSmsGateway()
+      .then((settings) => setSmsGateway(settings))
+      .catch((err) => setMsg(err.message));
+  }, []);
 
   useEffect(() => {
     if (!printCycle) return;
@@ -78,9 +86,27 @@ export default function Subscribers() {
     try {
       const cycle = await api.pay(subscriber.lastCycleId, amount);
       setPayments((prev) => ({ ...prev, [subscriber._id]: "" }));
-      setMsg(cycle.sms?.queued
-        ? "تم تسجيل الدفعة، وجارِ إرسال رسالة SMS في الخلفية"
-        : "تم تسجيل الدفعة");
+      let paymentMessage = "تم تسجيل الدفعة";
+      if (subscriber.phone) {
+        try {
+          if (!smsGateway.url || !smsGateway.token) {
+            throw new Error("إعدادات بوابة SMS غير مكتملة");
+          }
+          await axios.post(smsGateway.url, JSON.stringify({
+            to: subscriber.phone,
+            message: `تم تسجيل دفعة بقيمة ${amount} للمشترك ${subscriber.name}. المتبقي: ${cycle.remainingBalance}`,
+          }), {
+            headers: {
+              Authorization: smsGateway.token,
+              "Content-Type": "application/json; charset=utf-8",
+            },
+          });
+          paymentMessage = "تم تسجيل الدفعة وإرسال رسالة SMS بنجاح";
+        } catch (smsError) {
+          paymentMessage = "تم تسجيل الدفعة، لكن فشل إرسال رسالة SMS";
+        }
+      }
+      setMsg(paymentMessage);
       setList((currentList) => currentList.map((item) => (
         item._id === subscriber._id
           ? {
@@ -107,6 +133,16 @@ export default function Subscribers() {
     setSelected([]);
     setMsg("تم إرسال المختارين إلى صفحة القطع");
     load();
+  };
+
+  const sendToReconnect = async (subscriber) => {
+    try {
+      await api.sendToReconnect(subscriber._id);
+      setMsg("تم تحويل المشترك إلى جدول الوصل");
+      load();
+    } catch (err) {
+      setMsg(err.message);
+    }
   };
 
   const paymentRowClass = (subscriber) => {
@@ -221,7 +257,15 @@ export default function Subscribers() {
                 </td>
                 <td>{s.balance}</td>
                 <td style={{ color: s.connectionStatus === "مقطوع" ? "#dc2626" : "#16a34a" }}>
-                  {s.connectionStatus}
+                  {s.connectionStatus === "مقطوع" ? (
+                    <button
+                      type="button"
+                      onClick={() => sendToReconnect(s)}
+                      style={{ color: "inherit", cursor: "pointer", textDecoration: "underline" }}
+                    >
+                      {s.connectionStatus}
+                    </button>
+                  ) : s.connectionStatus}
                 </td>
                 <td>{s.lastPaymentBy || s.paidByName || s.paidByUsername || "-"}</td>
               </tr>

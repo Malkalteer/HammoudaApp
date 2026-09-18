@@ -90,4 +90,48 @@ router.post("/:id/pay", requireRole("admin", "accountant"), async (req, res) => 
   }
 });
 
+// تعديل آخر دفعة في الدورة مع تصحيح إجمالي الدورة والمالية
+router.put("/:id/last-payment", requireRole("admin"), async (req, res) => {
+  try {
+    const adjustment = Number(req.body.amount);
+    if (!Number.isFinite(adjustment) || adjustment === 0) {
+      return res.status(400).json({ error: "قيمة التصحيح يجب أن تكون موجبة أو سالبة وليست صفرًا" });
+    }
+
+    const cycle = await Cycle.findById(req.params.id);
+    if (!cycle) return res.status(404).json({ error: "الفاتورة غير موجودة" });
+
+    const payment = await Payment.findOne({ cycle: cycle._id }).sort({ paidAt: -1, createdAt: -1 });
+    if (!payment) return res.status(404).json({ error: "لا توجد دفعة لتعديلها" });
+
+    const previousAmount = Number(payment.amount || 0);
+    const correctedAmount = previousAmount + adjustment;
+    if (correctedAmount < 0) {
+      return res.status(400).json({ error: "لا يمكن أن تصبح قيمة الدفعة أقل من صفر" });
+    }
+    payment.amount = correctedAmount;
+    await payment.save();
+
+    cycle.paidAmount = Number(cycle.paidAmount || 0) + adjustment;
+    cycle.remainingBalance = cycle.totalDue - cycle.paidAmount;
+    cycle.status = cycle.paidAmount <= 0
+      ? "unpaid"
+      : cycle.remainingBalance <= 0 ? "paid" : "partial";
+    await cycle.save();
+
+    const financeDateKey = new Date(payment.paidAt || payment.createdAt).toISOString().slice(0, 10);
+    await FinanceDay.findOneAndUpdate(
+      { dateKey: financeDateKey },
+      { $inc: { dailyPaid: adjustment } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    await Subscriber.findByIdAndUpdate(cycle.subscriber, { balance: cycle.remainingBalance });
+
+    res.json({ ...cycle.toObject(), payment });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 module.exports = router;
