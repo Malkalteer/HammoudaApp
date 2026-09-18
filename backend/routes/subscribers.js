@@ -54,6 +54,40 @@ router.get("/", requireRole("admin", "accountant", "electrician"), async (req, r
     filter.connectionStatus = { $in: ["مطلوب قطعه", "مقطوع", "بانتظار الوصل"] };
   }
 
+  const paymentStatuses = new Set([
+    "payment-unpaid",
+    "payment-partial",
+    "payment-unpaid-or-partial",
+    "payment-paid",
+    "payment-advance",
+  ]);
+  if (paymentStatuses.has(status)) {
+    const candidates = await Subscriber.find(filter).select("_id").lean();
+    const candidateIds = candidates.map((subscriber) => subscriber._id);
+    const latestCycles = candidateIds.length
+      ? await Cycle.aggregate([
+          { $match: { subscriber: { $in: candidateIds } } },
+          { $sort: { createdAt: -1 } },
+          { $group: { _id: "$subscriber", cycle: { $first: "$$ROOT" } } },
+        ])
+      : [];
+    const latestCycleBySubscriber = new Map(
+      latestCycles.map((item) => [String(item._id), item.cycle])
+    );
+    const matchingIds = candidateIds.filter((id) => {
+      const cycle = latestCycleBySubscriber.get(String(id));
+      if (!cycle) return status === "payment-unpaid" || status === "payment-unpaid-or-partial";
+      const paidAmount = Number(cycle.paidAmount || 0);
+      const remainingBalance = Number(cycle.remainingBalance ?? cycle.totalDue ?? 0);
+      if (status === "payment-unpaid") return paidAmount <= 0;
+      if (status === "payment-partial") return paidAmount > 0 && remainingBalance > 0;
+      if (status === "payment-unpaid-or-partial") return remainingBalance > 0;
+      if (status === "payment-paid") return Math.abs(remainingBalance) < 0.000001;
+      return remainingBalance < 0;
+    });
+    filter._id = { $in: matchingIds };
+  }
+
   const [total, subscribers] = await Promise.all([
     Subscriber.countDocuments(filter),
     Subscriber.aggregate([

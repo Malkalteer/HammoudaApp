@@ -195,6 +195,11 @@ export default function Subscribers() {
             <option value="overdue">متأخرون</option>
             <option value="connected">متصلون</option>
             <option value="disconnected">مقطوعون</option>
+            <option value="payment-unpaid">لم يدفع كليًا</option>
+            <option value="payment-partial">عليه حساب جزئي</option>
+            <option value="payment-unpaid-or-partial">لم يدفع كليًا أو دفع جزئيًا</option>
+            <option value="payment-paid">دفع كامل الحساب</option>
+            <option value="payment-advance">دفع مقدمًا للأمام</option>
           </select>
         </div>
         {msg && <p style={{ color: "#2563eb" }}>{msg}</p>}
