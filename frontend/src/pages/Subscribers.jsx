@@ -154,7 +154,7 @@ export default function Subscribers() {
   };
 
   return (
-    <div className="container">
+    <div className="container subscribers-page">
       <div className="card">
         <div className="page-heading">
           <h2>المشتركون</h2>
@@ -212,9 +212,10 @@ export default function Subscribers() {
             إرسال المختارين ({selected.length}) إلى صفحة القطع
           </button>
         </div>
+        <div className="table-scroll-box">
         <table className="subscribers-table">
           <thead>
-            <tr>
+            <tr className="table-header">
               <th></th>
               <th>الرقم</th>
               <th>الاسم</th>
@@ -278,6 +279,7 @@ export default function Subscribers() {
             ))}
           </tbody>
         </table>
+        </div>
         <div className="toolbar" style={{ justifyContent: "center" }}>
           <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>
             السابق
