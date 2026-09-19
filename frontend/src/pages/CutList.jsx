@@ -56,13 +56,8 @@ export default function CutList() {
           <div className="cut-mobile-heading">
             <div className="cut-mobile-name">
               <strong>{subscriber.name}</strong>
-              <span>مشترك رقم {subscriber.subscriberId}</span>
+              <span><b>رقم التابلو</b>{subscriber.panelNumber || "-"}</span>
             </div>
-            
-          </div>
-          <div className="cut-mobile-details">
-            <span><b>رقم التابلو</b>{subscriber.panelNumber || "-"}</span>
-            <span><b>الهاتف</b>{subscriber.phone || "-"}</span>
           </div>
           <button className="cut-mobile-action" onClick={() => actionHandler(subscriber._id)}>
             {actionLabel}
