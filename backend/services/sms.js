@@ -14,7 +14,10 @@ const getGatewaySettings = async () => {
 };
 
 async function sendSms({ phone, message, subscriberId = null, subscriber = null, provider = "custom" }) {
-  const cleanPhone = String(phone || "").trim();
+  let cleanPhone = String(phone || "").trim().replace(/[\s-]/g, "");
+  if (cleanPhone && !cleanPhone.startsWith("+")) {
+    cleanPhone = `+${cleanPhone}`;
+  }
 
   if (!cleanPhone) {
     const log = await SmsLog.create({
