@@ -3,7 +3,7 @@ const Setting = require("../models/Setting");
 
 // عنوان API الثابت لخدمة SMS Gateway for Android (وضع Cloud Server)
 // راجع: https://docs.sms-gate.app/integration/api/
-const SMS_GATE_API_URL = "https://api.sms-gate.app:443";
+const SMS_GATE_API_URL = "https://api.sms-gate.app/3rdparty/v1/messages";
 
 const getGatewaySettings = async () => {
   const settings = await Setting.find({
