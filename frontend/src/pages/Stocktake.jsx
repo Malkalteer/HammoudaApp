@@ -9,7 +9,12 @@ export default function Stocktake() {
   const [uploading, setUploading] = useState(false);
 
   const load = async () => {
-    const list = await api.getSubscribers();
+    const result = await api.getSubscribers("", "all", 1, 10000);
+    const list = Array.isArray(result)
+      ? result
+      : Array.isArray(result?.items)
+      ? result.items
+      : [];
     setSubscribers(list);
 
     const defaults = {};
